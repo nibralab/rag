@@ -1,7 +1,7 @@
 # privateGPT
 Ask questions to your documents without an internet connection, using the power of LLMs. 100% private, no data leaves your execution environment at any point. You can ingest documents and ask questions without an internet connection!
 
-> :ear: **Need help applying PrivateGPT to your specific use case?** [Let us know more about it](https://forms.gle/4cSDmH13RZBHV9at7) and we'll try to help! We are refining PrivateGPT through your feedback.
+> Note: this is a slightly modified version of PrivateGPT using models such as Llama 2 Uncensored. All credit for PrivateGPT goes to Iván Martínez who is the creator of it, and you can find his GitHub repo [here](https://github.com/imartinez/privateGPT).
 
 <img width="902" alt="demo" src="https://user-images.githubusercontent.com/721666/236942256-985801c9-25b9-48ef-80be-3acbb4575164.png">
 
@@ -26,6 +26,12 @@ poetry shell
 
 Then, download the LLM model and place it in a directory of your choice:
 - LLM: default to [ggml-gpt4all-j-v1.3-groovy.bin](https://gpt4all.io/models/ggml-gpt4all-j-v1.3-groovy.bin). If you prefer a different GPT4All-J compatible model, just download it and reference it in your `.env` file.
+
+Pull the model you'd like to use:
+
+```shell
+ollama pull llama2-uncensored
+```
 
 Copy the `example.env` template into `.env`
 ```shell
@@ -113,6 +119,12 @@ Note: you could turn off your internet connection, and the script inference woul
 
 Type `exit` to finish the script.
 
+### Try a different model:
+
+```
+ollama pull llama2:13b
+MODEL=llama2:13b python privateGPT.py
+```
 
 ### CLI
 The script also supports optional command-line arguments to modify its behavior. You can see a full list of these arguments by running the command ```python privateGPT.py --help``` in your terminal.

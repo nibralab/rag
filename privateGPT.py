@@ -4,7 +4,7 @@ from langchain.chains import RetrievalQA
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain.vectorstores import Chroma
-from langchain.llms import GPT4All, LlamaCpp
+from langchain.llms import GPT4All, LlamaCpp, Ollama
 import chromadb
 import os
 import argparse
@@ -14,8 +14,13 @@ if not load_dotenv():
     print("Could not load .env file or it is empty. Please check if it exists and is readable.")
     exit(1)
 
-embeddings_model_name = os.environ.get("EMBEDDINGS_MODEL_NAME")
-persist_directory = os.environ.get('PERSIST_DIRECTORY')
+model = os.environ.get("MODEL", "llama2-uncensored")
+
+# For embeddings model, the example uses a sentence-transformers model
+# https://www.sbert.net/docs/pretrained_models.html 
+# "The all-mpnet-base-v2 model provides the best quality, while all-MiniLM-L6-v2 is 5 times faster and still offers good quality."
+embeddings_model_name = os.environ.get("EMBEDDINGS_MODEL_NAME", "all-MiniLM-L6-v2")
+persist_directory = os.environ.get("PERSIST_DIRECTORY", "db")
 
 model_type = os.environ.get('MODEL_TYPE')
 model_path = os.environ.get('MODEL_PATH')
@@ -40,10 +45,12 @@ def main():
             llm = LlamaCpp(model_path=model_path, max_tokens=model_n_ctx, n_batch=model_n_batch, callbacks=callbacks, verbose=False)
         case "GPT4All":
             llm = GPT4All(model=model_path, max_tokens=model_n_ctx, backend='gptj', n_batch=model_n_batch, callbacks=callbacks, verbose=False)
+        case "Ollama":
+            llm = Ollama(model=model, callbacks=callbacks)
         case _default:
             # raise exception if model_type is not supported
             raise Exception(f"Model type {model_type} is not supported. Please choose one of the following: LlamaCpp, GPT4All")
-
+        
     qa = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents= not args.hide_source)
     # Interactive questions and answers
     while True:

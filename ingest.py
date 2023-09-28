@@ -34,9 +34,9 @@ import chromadb
 from chromadb.api.segment import API
 
 # Load environment variables
-persist_directory = os.environ.get('PERSIST_DIRECTORY')
+persist_directory = os.environ.get('PERSIST_DIRECTORY', 'db')
 source_directory = os.environ.get('SOURCE_DIRECTORY', 'source_documents')
-embeddings_model_name = os.environ.get('EMBEDDINGS_MODEL_NAME')
+embeddings_model_name = os.environ.get('EMBEDDINGS_MODEL_NAME', 'all-MiniLM-L6-v2')
 chunk_size = 500
 chunk_overlap = 50
 
