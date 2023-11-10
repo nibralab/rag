@@ -6,7 +6,6 @@ from typing import Any
 import requests
 import torch
 from dotenv import load_dotenv
-from transformers import AutoModelForQuestionAnswering, AutoTokenizer, pipeline
 from txtai.embeddings import Embeddings
 
 from tasks.generic import translate, sentiment_analysis
@@ -23,6 +22,15 @@ model_n_batch = int(os.environ.get('MODEL_N_BATCH', 8))
 callbacks = []
 
 
+def resilient_translate(text: str, target: str, source: str):
+    try:
+        return translate(text, target, source)
+    except torch.cuda.OutOfMemoryError as e:
+        print(f"Out of memory error: {e}\ntranslating\n'{text}'\nfrom '{source}' to '{target}'")
+        print("Using original text instead.")
+        return text
+
+
 class Workflow:
 
     def call(self, function_name: str, **params: dict[str, Any]) -> dict[str, Any]:
@@ -35,6 +43,7 @@ class Workflow:
             'error': f'Unknown callable {function_name}'
         }
 
+    @staticmethod
     def _prompt(self, request: str, sentiment: str = None) -> str:
         sentiment_modifier = ""
         if sentiment is not None and sentiment != "neutral":
@@ -44,7 +53,7 @@ class Workflow:
         Answer the following request using the context below.
         {sentiment_modifier}
         Question: {request}
-        Context: 
+        Context:
         """
 
         return re.sub(r"\n\s+", "\n", prompt)
@@ -69,9 +78,9 @@ class Workflow:
         embeddings = Embeddings({"path": "sentence-transformers/nli-mpnet-base-v2", "content": True})
         embeddings.load(DATA_PATH)
         escaped_request = re.sub(r"([\"'])", r"\\\1", support_request)
-        reference = embeddings.search(f"SELECT * FROM txtai WHERE similar('{escaped_request}') ORDER BY score DESC LIMIT 1")[0]
+        query = f"SELECT * FROM txtai WHERE similar('{escaped_request}') ORDER BY score DESC LIMIT 1"
+        reference = embeddings.search(query)[0]
         context = reference['text']
-        score = reference['score']
         data = json.loads(reference['data'])
 
         prompt = self._prompt(support_request, sentiment)
@@ -79,6 +88,9 @@ class Workflow:
         request = {
             "model": model_name,
             "prompt": prompt + context,
+            "options": {
+                "temperature": 0.0,
+            },
             "stream": False,
         }
 
@@ -94,7 +106,7 @@ class Workflow:
         print("Got the answer: \n" + (answer if answer else "---"))
 
         return {
-            "suggestion": translate(answer, 'de', 'en') if options['with_translation'] else answer,
+            "suggestion": resilient_translate(answer, 'de', 'en') if options['with_translation'] else answer,
             "helpdesk_url": "https://www.hosting.de/support/" + (data['slug'] if 'slug' in data else ''),
             'sentiment': sentiment,
             'prompt': prompt,
