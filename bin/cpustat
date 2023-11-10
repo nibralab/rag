@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# Show the CPU status after clearing the screen, refreshing every N seconds
+# Usage: cpustat
+# N is the refresh interval in seconds (default 1)
+#
+# You can open a new terminal window with this command:
+#
+#   gnome-terminal --geometry=96x10 -- bin/cpustat
+#
+# where 20 is the number of CPUs + 4
+
+htop

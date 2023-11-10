@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# Show the GPU status after clearing the screen, refreshing every N seconds
+# Usage: gpustat [N]
+# N is the refresh interval in seconds (default 5)
+#
+# You can open a new terminal window with this command:
+#
+#   gnome-terminal --geometry=89x26 -- bin/gpustat 5
+
+PS1=$PS1"\[\e]0;GPU Status\a\]"
+
+# Loop forever (until Ctrl-C)
+while true; do
+    # Clear the screen
+    clear
+
+    # Show the GPU status
+    nvidia-smi
+
+    # Sleep until the next refresh
+    sleep ${1:-5}
+done

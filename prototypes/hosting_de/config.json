@@ -1,0 +1,47 @@
+{
+  "title": "Proof of Concept",
+  "description": "1st Level Support KI für hosting.de",
+  "fields": {
+    "support_request": {
+      "label": "Support Anfrage",
+      "description": "Kundenanfrage an den Support",
+      "type": "textarea"
+    },
+    "suggestion": {
+      "label": "Lösungsvorschlag",
+      "description": "Generierte Antwort an den Kunden",
+      "type": "textarea"
+    },
+    "helpdesk_url": {
+      "label": "Helpdesk URL",
+      "description": "Link zum Hilfetext im Helpdesk",
+      "type": "text"
+    },
+    "with_translation": {
+      "label": "mit Übersetzung",
+      "description": "internen Übersetzer verwenden",
+      "type": "checkbox"
+    },
+    "with_sentiment": {
+      "label": "mit Stimmungsanalyse",
+      "description": "Sentiment Analyse verwenden",
+      "type": "checkbox"
+    }
+  },
+  "options": {
+    "with_translation": false,
+    "with_sentiment": false
+  },
+  "steps": {
+    "generate": {
+      "input": [
+        "support_request"
+      ],
+      "output": [
+        "suggestion",
+        "helpdesk_url"
+      ],
+      "button": "Antwort generieren"
+    }
+  }
+}

@@ -1,4 +1,4 @@
-langchain==0.0.274
+langchain~=0.0.330
 gpt4all==1.0.8
 chromadb==0.4.12
 llama-cpp-python==0.1.81
@@ -12,3 +12,8 @@ pandoc==2.3
 pypandoc==1.11
 tqdm==4.66.1
 sentence_transformers==2.2.2
+
+transformers~=4.33.3
+flask~=2.3.3
+requests~=2.31.0
+txtai~=6.2.0

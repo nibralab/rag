@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# Show the CPU and GPU status in their own windows after clearing the screen, refreshing every N seconds
+# Usage: monitor [N]
+# N is the refresh interval in seconds (default 1)
+
+NUM_CPUS=$(nproc --all)
+
+gnome-terminal --geometry=96x10 --title="CPU Status" -- bin/cpustat ${1:-1}
+gnome-terminal --geometry=96x26 --title="GPU Status" -- bin/gpustat ${1:-1}

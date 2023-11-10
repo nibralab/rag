@@ -1,0 +1,37 @@
+#!/usr/bin/env python3
+
+# Get a list of available Ollama models with a short description
+#
+# Copyright (c) 2021 Niels Braczek, AI-Schmiede
+
+
+import requests
+from bs4 import BeautifulSoup
+
+ollama_url = "https://ollama.ai"
+page = requests.get(ollama_url + "/library")
+soup = BeautifulSoup(page.content, "html.parser")
+
+# Get the list of models
+list_items = soup.find_all("li", class_="items-baseline")
+
+# Extract link, name and description from each list item
+models = []
+for item in list_items:
+    link = item.find("a")
+    name = link.find("h2").text.strip()
+    url = ollama_url + link["href"]
+    description = link.find("p").text.strip()
+    if "Pulls" in description:
+        description = "No description available."
+
+    models.append({
+        "name": name,
+        "url": url,
+        "description": description
+    })
+
+# Print the list of models
+esc = "\033"
+for model in models:
+    print(f"{esc}]8;;{model['url']}/{esc}\\{model['name']}{esc}]8;;{esc}\\ - {model['description']}")

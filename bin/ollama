@@ -1,0 +1,87 @@
+#!/bin/bash
+
+# Start the Ollama Docker container
+# Usage: ollama start <port>
+#        ollama stop
+#        ollama status
+#        ollama logs
+#
+# <port> defaults to 11434
+
+usage()
+{
+    echo "Usage: ollama start <port>"
+    echo "       ollama stop"
+    echo "       ollama status"
+    echo "       ollama logs"
+    exit 1
+}
+
+ensure_ollama_is_running()
+{
+    # Check if the ollama container exists
+    if ! [ "$(docker ps -aq -f name=ollama)" ]; then
+        echo "Ollama is not running."
+        exit 0
+    fi
+}
+
+exit_if_container_is_running()
+{
+    # Check if the ollama container is running
+    if [ "$(docker ps -aq -f status=running -f name=ollama)" ]; then
+        echo "Ollama is already running."
+        exit 0
+    fi
+}
+
+ensure_toolkit_is_installed()
+{
+    # Check if the NVIDIA Container Toolkit is installed
+    if ! [ -x "$(command -v nvidia-ctk)" ]; then
+        echo "The NVIDIA Container Toolkit is not installed. Please run bin/install-container-toolkit first."
+        exit 1
+    fi
+}
+
+# Get subcommand
+subcommand=$1
+
+# Check if a subcommand was given
+if [ -z "$subcommand" ]; then
+    usage
+fi
+
+# Switch depending on subcommand
+if [ "$subcommand" = "start" ]; then
+    ensure_toolkit_is_installed
+
+    # Check if the ollama container already exists
+    if [ "$(docker ps -aq -f name=ollama)" ]; then
+        exit_if_container_is_running
+        docker rm ollama
+    fi
+
+    docker run -d --gpus=all -v "ollama:/root/.ollama" -p ${2:-11434}:11434 --name ollama ollama/ollama
+    exit 0
+fi
+
+if [ "$subcommand" = "stop" ]; then
+    ensure_ollama_is_running
+    docker stop ollama
+    exit 0
+fi
+
+if [ "$subcommand" = "status" ]; then
+    ensure_ollama_is_running
+    docker ps -f name=ollama
+    exit 0
+fi
+
+if [ "$subcommand" = "logs" ]; then
+    ensure_ollama_is_running
+    gnome-terminal --geometry=120x40 --title="Ollama Log" -- docker logs -f ollama
+    exit 0
+fi
+
+usage

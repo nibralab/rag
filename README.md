@@ -40,7 +40,7 @@ cp example.env .env
 
 and edit the variables appropriately in the `.env` file.
 ```
-MODEL_TYPE: supports LlamaCpp or GPT4All
+MODEL_TYPE: supports LlamaCpp, GPT4All or Ollama.
 PERSIST_DIRECTORY: is the folder you want your vectorstore in
 MODEL_PATH: Path to your GPT4All or LlamaCpp supported LLM
 MODEL_N_CTX: Maximum token limit for the LLM model
@@ -91,7 +91,7 @@ Loaded 1 new documents from source_documents
 Split into 90 chunks of text (max. 500 tokens each)
 Creating embeddings. May take some minutes...
 Using embedded DuckDB with persistence: data will be stored in: db
-Ingestion complete! You can now run privateGPT.py to query your documents
+Ingestion complete! You can now run chat.py to query your documents
 ```
 
 It will create a `db` folder containing the local vectorstore. Will take 20-30 seconds per document, depending on the size of the document.
@@ -104,7 +104,7 @@ Note: during the ingest process no data leaves your local environment. You could
 In order to ask a question, run a command like:
 
 ```shell
-python privateGPT.py
+python chat.py
 ```
 
 And wait for the script to require your input.

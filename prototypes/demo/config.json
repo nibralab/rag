@@ -1,0 +1,77 @@
+{
+  "title": "Demo",
+  "description": "Formuliert die Eingabe um",
+  "fields": {
+    "input": {
+      "label": "Eingabe",
+      "description": "Text, der umformuliert werden soll",
+      "type": "textarea"
+    },
+    "answer": {
+      "label": "Ausgabe",
+      "description": "Umformulierter Text",
+      "type": "textarea"
+    },
+    "sentiment": {
+      "label": "Stimmung",
+      "description": "Gefühlslage",
+      "type": "select",
+      "options": {
+        "disappointment": "Enttäuschung",
+        "sadness": "Traurigkeit",
+        "annoyance": "Ärger",
+        "neutral": "Neutral",
+        "disapproval": "Missbilligung",
+        "realization": "Erkenntnis",
+        "nervousness": "Nervosität",
+        "approval": "Zustimmung",
+        "joy": "Freude",
+        "anger": "Wut",
+        "embarrassment": "Verlegenheit",
+        "caring": "Fürsorge",
+        "remorse": "Reue",
+        "disgust": "Ekel",
+        "grief": "Trauer",
+        "confusion": "Verwirrung",
+        "relief": "Erleichterung",
+        "desire": "Verlangen",
+        "admiration": "Bewunderung",
+        "optimism": "Optimismus",
+        "fear": "Angst",
+        "love": "Liebe",
+        "excitement": "Aufregung",
+        "curiosity": "Neugier",
+        "amusement": "Vergnügen",
+        "surprise": "Überraschung",
+        "gratitude": "Dankbarkeit"
+      },
+      "depends": "with_sentiment"
+    },
+    "with_translation": {
+      "label": "mit Übersetzung",
+      "description": "internen Übersetzer verwenden",
+      "type": "checkbox"
+    },
+    "with_sentiment": {
+      "label": "mit Stimmungsanalyse",
+      "description": "Sentiment Analyse verwenden",
+      "type": "checkbox"
+    }
+  },
+  "options": {
+    "with_translation": false,
+    "with_sentiment": false
+  },
+  "steps": {
+    "rephrase": {
+      "input": [
+        "input"
+      ],
+      "output": [
+        "answer",
+        "sentiment"
+      ],
+      "button": "Umformulieren"
+    }
+  }
+}

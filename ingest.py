@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
+import json
 import os
 import glob
 from typing import List
 from dotenv import load_dotenv
 from multiprocessing import Pool
+
+from langchain.embeddings.ollama import OllamaEmbeddings
 from tqdm import tqdm
 
 from langchain.document_loaders import (
@@ -22,28 +25,27 @@ from langchain.document_loaders import (
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import Chroma
-from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.docstore.document import Document
-
-if not load_dotenv():
-    print("Could not load .env file or it is empty. Please check if it exists and is readable.")
-    exit(1)
+from txtai import Embeddings
 
 from constants import CHROMA_SETTINGS
 import chromadb
 from chromadb.api.segment import API
+from generic_tasks import OllamaEmbedder
 
-# Load environment variables
-persist_directory = os.environ.get('PERSIST_DIRECTORY', 'db')
-source_directory = os.environ.get('SOURCE_DIRECTORY', 'source_documents')
-embeddings_model_name = os.environ.get('EMBEDDINGS_MODEL_NAME', 'all-MiniLM-L6-v2')
+# Load environment variables
+load_dotenv()
+CUSTOM_NAME = os.environ.get('CUSTOM_DIR', 'demo')
+CUSTOM_DIR = os.path.join('prototypes', CUSTOM_NAME)
+persist_directory = os.environ.get('PERSIST_DIRECTORY', os.path.join(CUSTOM_DIR, 'db'))
+source_directory = os.environ.get('SOURCE_DIRECTORY', os.path.join(CUSTOM_DIR, 'source_documents'))
 chunk_size = 500
 chunk_overlap = 50
 
 
 # Custom document loaders
 class MyElmLoader(UnstructuredEmailLoader):
-    """Wrapper to fallback to text/plain when default does not work"""
+    """Wrapper to fall back to text/plain when default does not work"""
 
     def load(self) -> List[Document]:
         """Wrapper adding fallback for elm without html"""
@@ -53,7 +55,7 @@ class MyElmLoader(UnstructuredEmailLoader):
             except ValueError as e:
                 if 'text/html content not found in email' in str(e):
                     # Try plain text
-                    self.unstructured_kwargs["content_source"]="text/plain"
+                    self.unstructured_kwargs["content_source"] = "text/plain"
                     doc = UnstructuredEmailLoader.load(self)
                 else:
                     raise
@@ -93,6 +95,7 @@ def load_single_document(file_path: str) -> List[Document]:
 
     raise ValueError(f"Unsupported file extension '{ext}'")
 
+
 def load_documents(source_dir: str, ignored_files: List[str] = []) -> List[Document]:
     """
     Loads all documents from the source documents directory, ignoring specified files
@@ -109,12 +112,13 @@ def load_documents(source_dir: str, ignored_files: List[str] = []) -> List[Docum
 
     with Pool(processes=os.cpu_count()) as pool:
         results = []
-        with tqdm(total=len(filtered_files), desc='Loading new documents', ncols=80) as pbar:
+        with tqdm(total=len(filtered_files), desc='Loading new documents', ncols=160) as pbar:
             for i, docs in enumerate(pool.imap_unordered(load_single_document, filtered_files)):
                 results.extend(docs)
                 pbar.update()
 
     return results
+
 
 def process_documents(ignored_files: List[str] = []) -> List[Document]:
     """
@@ -126,10 +130,23 @@ def process_documents(ignored_files: List[str] = []) -> List[Document]:
         print("No new documents to load")
         exit(0)
     print(f"Loaded {len(documents)} new documents from {source_directory}")
+
+    # Linearize list entries
+    for document in documents:
+        if 'emphasized_text_contents' in document.metadata:
+            document.metadata['emphasized_text_contents'] = ' '.join(document.metadata['emphasized_text_contents'])
+        if 'emphasized_text_tags' in document.metadata:
+            document.metadata['emphasized_text_tags'] = ' '.join(document.metadata['emphasized_text_tags'])
+        if 'link_urls' in document.metadata:
+            document.metadata['link_urls'] = ' '.join(document.metadata['link_urls'])
+        if 'link_texts' in document.metadata:
+            document.metadata['link_texts'] = ' '.join(document.metadata['link_texts'])
+
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
     documents = text_splitter.split_documents(documents)
     print(f"Split into {len(documents)} chunks of text (max. {chunk_size} tokens each)")
     return documents
+
 
 def batch_chromadb_insertions(chroma_client: API, documents: List[Document]) -> List[Document]:
     """
@@ -141,7 +158,7 @@ def batch_chromadb_insertions(chroma_client: API, documents: List[Document]) -> 
         yield documents[i:i + max_batch_size]
 
 
-def does_vectorstore_exist(persist_directory: str, embeddings: HuggingFaceEmbeddings) -> bool:
+def does_vectorstore_exist(persist_directory: str, embeddings: OllamaEmbeddings) -> bool:
     """
     Checks if vectorstore exists
     """
@@ -150,21 +167,23 @@ def does_vectorstore_exist(persist_directory: str, embeddings: HuggingFaceEmbedd
         return False
     return True
 
+
 def main():
     # Create embeddings
-    embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name)
+    embeddings = Embeddings()
+
     # Chroma client
-    chroma_client = chromadb.PersistentClient(settings=CHROMA_SETTINGS , path=persist_directory)
+    chroma_client = chromadb.PersistentClient(settings=CHROMA_SETTINGS, path=persist_directory)
 
     if does_vectorstore_exist(persist_directory, embeddings):
         # Update and store locally vectorstore
         print(f"Appending to existing vectorstore at {persist_directory}")
-        db = Chroma(persist_directory=persist_directory, embedding_function=embeddings, client_settings=CHROMA_SETTINGS, client=chroma_client)
+        db = Chroma(persist_directory=persist_directory, embedding_function=embeddings, client_settings=CHROMA_SETTINGS,
+                    client=chroma_client)
         collection = db.get()
         documents = process_documents([metadata['source'] for metadata in collection['metadatas']])
         print(f"Creating embeddings. May take some minutes...")
-        for batched_chromadb_insertion in batch_chromadb_insertions(chroma_client, documents):
-            db.add_documents(batched_chromadb_insertion)
+        add_documents_to_chromadb(db, batch_chromadb_insertions(chroma_client, documents))
     else:
         # Create and store locally vectorstore
         print("Creating new vectorstore")
@@ -172,13 +191,32 @@ def main():
         print(f"Creating embeddings. May take some minutes...")
         # Create the db with the first batch of documents to insert
         batched_chromadb_insertions = batch_chromadb_insertions(chroma_client, documents)
-        first_insertion = next(batched_chromadb_insertions)
-        db = Chroma.from_documents(first_insertion, embeddings, persist_directory=persist_directory, client_settings=CHROMA_SETTINGS, client=chroma_client)
-        # Add the rest of batches of documents
-        for batched_chromadb_insertion in batched_chromadb_insertions:
-            db.add_documents(batched_chromadb_insertion)
+        created = False
+        while not created:
+            try:
+                first_insertion = next(batched_chromadb_insertions)
+                db = Chroma.from_documents(first_insertion, embeddings, persist_directory=persist_directory,
+                                           client_settings=CHROMA_SETTINGS, client=chroma_client)
+                created = True
+            except ValueError as e:
+                print(f"Error: {e}\nSkipping this batch of documents")
+                print(first_insertion)
+                continue
 
-    print(f"Ingestion complete! You can now run privateGPT.py to query your documents")
+        # Add the rest of batches of documents
+        add_documents_to_chromadb(db, batched_chromadb_insertions)
+
+    print(f"Ingestion complete! You can now run the {CUSTOM_NAME} prototype to query your documents")
+
+
+def add_documents_to_chromadb(db, chromadb_insertion):
+    for batched_chromadb_insertion in chromadb_insertion:
+        try:
+            db.add_documents(batched_chromadb_insertion)
+        except ValueError as e:
+            print(f"Error: {e}\nSkipping this batch of documents")
+            print(batched_chromadb_insertion)
+            continue
 
 
 if __name__ == "__main__":

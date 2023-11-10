@@ -1,0 +1,45 @@
+#! /usr/bin/bash
+
+# NVIDIA Container Toolkit Installation Script
+#
+# Copyright (c) 2021 Niels Braczek, AI-Schmiede
+#
+# This script follows the steps outlined in the NVIDIA Container Toolkit documentation:
+# https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#installation
+# with some enhancements.
+
+# Check if toolkit already is installed
+if [ -x "$(command -v nvidia-ctk)" ]; then
+    # Store the version in a variable
+    version=$(nvidia-ctk --version)
+
+    # Split into lines
+    IFS=$'\n' read -rd '' -a lines <<< "$version"
+
+    # Add " is already installed." to the first line
+    lines[0]="${lines[0]} is already installed."
+
+    # Print the lines
+    printf '%s\n' "${lines[@]}"
+    exit 0
+fi
+
+# Install the NVIDIA Container Toolkit
+echo "Configuring the repository"
+curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
+  && curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+    sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+    sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list \
+  && \
+    sudo apt-get update
+
+echo "Installing the NVIDIA Container Toolkit packages"
+sudo apt-get install -y nvidia-container-toolkit
+
+echo "Configuring the container runtime"
+sudo nvidia-ctk runtime configure --runtime=docker
+
+echo "Restarting the Docker daemon"
+sudo systemctl restart docker
+
+echo "Done."

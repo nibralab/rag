@@ -1,0 +1,93 @@
+{
+  "title": "Proof of Concept",
+  "description": "Mängelmanagement-KI für Anders+Ganz",
+  "fields": {
+    "complaint": {
+      "label": "Mängelanzeige",
+      "description": "Kundenanfrage an den Support (E-Mail mit Kopfzeilen)",
+      "type": "textarea"
+    },
+    "problems": {
+      "label": "Problemstellung(en)",
+      "description": "Strichliste der erkannten Probleme, 1 Problem = 1 Zeile",
+      "type": "textarea"
+    },
+    "sentiment": {
+      "label": "Stimmung",
+      "description": "Stimmung des Kunden",
+      "type": "select",
+      "options": {
+        "disappointment": "Enttäuschung",
+        "sadness": "Traurigkeit",
+        "annoyance": "Ärger",
+        "neutral": "Neutral",
+        "disapproval": "Missbilligung",
+        "realization": "Erkenntnis",
+        "nervousness": "Nervosität",
+        "approval": "Zustimmung",
+        "joy": "Freude",
+        "anger": "Wut",
+        "embarrassment": "Verlegenheit",
+        "caring": "Fürsorge",
+        "remorse": "Reue",
+        "disgust": "Ekel",
+        "grief": "Trauer",
+        "confusion": "Verwirrung",
+        "relief": "Erleichterung",
+        "desire": "Verlangen",
+        "admiration": "Bewunderung",
+        "optimism": "Optimismus",
+        "fear": "Angst",
+        "love": "Liebe",
+        "excitement": "Aufregung",
+        "curiosity": "Neugier",
+        "amusement": "Vergnügen",
+        "surprise": "Überraschung",
+        "gratitude": "Dankbarkeit"
+      },
+      "depends": "with_sentiment"
+    },
+    "solution": {
+      "label": "Lösungsvorschlag",
+      "description": "Generierte Antwort an den Kunden",
+      "type": "textarea"
+    },
+    "with_translation": {
+      "label": "mit Übersetzung",
+      "description": "internen Übersetzer verwenden",
+      "type": "checkbox"
+    },
+    "with_sentiment": {
+      "label": "mit Stimmungsanalyse",
+      "description": "Sentiment Analyse verwenden",
+      "type": "checkbox"
+    }
+  },
+  "options": {
+    "with_translation": false,
+    "with_sentiment": false
+  },
+  "steps": {
+    "identify_problem": {
+      "input": [
+        "complaint"
+      ],
+      "output": [
+        "problems",
+        "sentiment"
+      ],
+      "button": "Probleme erkennen"
+    },
+    "solve_problem": {
+      "input": [
+        "complaint",
+        "problems",
+        "sentiment"
+      ],
+      "output": [
+        "solution"
+      ],
+      "button": "Lösungsvorschlag generieren"
+    }
+  }
+}
