@@ -108,7 +108,7 @@ def main():
     embeddings.upsert([
         (
             # Create an MD5 hash from the metadata to use as the ID
-            md5(json.dumps(document["metadata"]).encode("utf-8")).hexdigest(),  # ID
+            md5(json.dumps(document["text"]).encode("utf-8")).hexdigest(),  # ID
             {
                 "source": document["source"],
                 "date": document["date"],

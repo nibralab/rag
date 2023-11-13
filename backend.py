@@ -5,30 +5,21 @@ import sys
 from dotenv import load_dotenv
 from flask import Flask, request
 
-load_dotenv()
-
-CUSTOM_DIR = os.path.join('prototypes', os.environ.get('CUSTOM_DIR', 'demo'))
-
-# Base directory
-BASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), CUSTOM_DIR)
-sys.path.append(BASE_DIR)
-
-# Load JSON config file
-with open(os.path.join(BASE_DIR, 'config.json')) as f:
-    config = json.load(f)
-
-# Import the "custom" module from CUSTOM_DIR (e.g. "prototypes/demo/custom") and make it accessible as 'custom'
-import importlib
-custom = __import__(CUSTOM_DIR.replace('/', '.') + '.custom', fromlist=['Workflow'])
-importlib.reload(custom)
-
 app = Flask(__name__)
 
-print("Serving " + os.path.basename(CUSTOM_DIR) + " prototype on http://localhost:5000")
-print("Available tasks: " + ', '.join(config['steps'].keys()))
+load_dotenv()
 
-@app.route('/', methods=['POST'])
-def main():
+
+@app.route('/stop', methods=['GET'])
+def stop():
+    print("Stopping server...")
+    sys.exit(0)
+
+
+@app.route('/<client>', methods=['POST'])
+def serve_client(client: str):
+    config, custom = prepare_configuration_for_client(client)
+
     step = request.form['step']
 
     # Error out, if step is not a key in config['steps']
@@ -61,5 +52,25 @@ def main():
     return custom.Workflow().call(step, **params, options=options)
 
 
+def prepare_configuration_for_client(client):
+    CUSTOM_DIR = os.path.join('prototypes', client)
+    # Base directory
+    BASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), CUSTOM_DIR)
+    sys.path.append(BASE_DIR)
+    # Load JSON config file
+    with open(os.path.join(BASE_DIR, 'config.json')) as f:
+        config = json.load(f)
+    # Import the "custom" module from CUSTOM_DIR (e.g. "prototypes/demo/custom") and make it accessible as 'custom'
+    import importlib
+    custom = __import__(CUSTOM_DIR.replace('/', '.') + '.custom', fromlist=['Workflow'])
+    importlib.reload(custom)
+    return config, custom
+
+
 if __name__ == '__main__':
-    app.run(host='localhost', port=5000, debug=True)
+    # Get debug options from command line
+    debug = False
+    if len(sys.argv) > 1 and sys.argv[1] == '--debug':
+        debug = True
+
+    app.run(host='localhost', port=5000, debug=debug)

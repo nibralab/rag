@@ -5,7 +5,7 @@ import textwrap
 from typing import Any
 
 import requests
-from generic_tasks import sentiment_analysis, translate
+from tasks.generic import translate, sentiment_analysis
 
 ollama_url = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/generate")
 
@@ -63,7 +63,7 @@ class Workflow:
 
         if options['with_translation']:
             print("Translating the complaint into English")
-            complaint = translate(complaint, 'de', 'en')
+            complaint = translate(complaint, 'en', 'de')
 
         # Remove leading whitespace from the prompt lines
         prompt = "\n".join(line.strip() for line in prompt.splitlines())
@@ -101,14 +101,14 @@ class Workflow:
 
         if options['with_sentiment']:
             print("Analyzing the sentiment of the input")
-            sentiment, score = sentiment_analysis(complaint)
+            sentiment = sentiment_analysis(complaint)
             print("Sentiment: " + sentiment)
         else:
             sentiment = None
 
         return {
             'complaint': complaint,
-            'answer': answer,
+            'problems': answer,
             'sentiment': sentiment,
             'prompt': prompt
         }
@@ -199,7 +199,7 @@ class Workflow:
 
         if options['with_translation']:
             print("Translating the answer into German")
-            answer = translate(answer, 'en', 'de')
+            answer = translate(answer, 'de', 'en')
 
         return {
             'complaint': complaint,

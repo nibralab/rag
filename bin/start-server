@@ -1,0 +1,22 @@
+#! /usr/bin/bash
+
+# Get the directory of this script
+dir="$(dirname "$(readlink -f $0)")"
+pid_file="$dir/pid.txt"
+
+# Start the Ollama service
+"$dir/ollama" start
+
+# Check if the server is already running
+response=$(curl -Is http://localhost:5000 | head -n 1)
+if [ -n "$response" ]; then
+    echo "The server is already running."
+    exit 0
+fi
+
+# Start the server
+gnome-terminal --geometry=120x25 --title="AI Backend" -- python "$(dirname "$dir")/backend.py"
+pid=$!
+echo "Started the server process with pid $pid."
+echo $pid > "$pid_file"
+

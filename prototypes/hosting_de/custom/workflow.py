@@ -20,6 +20,7 @@ model_name = os.environ.get('MODEL_NAME')
 model_n_ctx = os.environ.get('MODEL_N_CTX')
 model_n_batch = int(os.environ.get('MODEL_N_BATCH', 8))
 callbacks = []
+tag_threshold = 0.4
 
 
 def resilient_translate(text: str, target: str, source: str):
@@ -43,21 +44,6 @@ class Workflow:
             'error': f'Unknown callable {function_name}'
         }
 
-    @staticmethod
-    def _prompt(self, request: str, sentiment: str = None) -> str:
-        sentiment_modifier = ""
-        if sentiment is not None and sentiment != "neutral":
-            sentiment_modifier = f"Be empathic and take into account the sentiment '{sentiment}' of the request.\n"
-
-        prompt = f"""
-        Answer the following request using the context below.
-        {sentiment_modifier}
-        Question: {request}
-        Context:
-        """
-
-        return re.sub(r"\n\s+", "\n", prompt)
-
     def generate(self, support_request, options):
         """
         """
@@ -80,16 +66,25 @@ class Workflow:
         escaped_request = re.sub(r"([\"'])", r"\\\1", support_request)
         query = f"SELECT * FROM txtai WHERE similar('{escaped_request}') ORDER BY score DESC LIMIT 1"
         reference = embeddings.search(query)[0]
-        context = reference['text']
-        data = json.loads(reference['data'])
 
-        prompt = self._prompt(support_request, sentiment)
+        sentiment_modifier = ""
+        if sentiment is not None and sentiment != "neutral":
+            sentiment_modifier = f" Be empathic and take into account the sentiment '{sentiment}' of the request."
+
+        prompt = f"""
+        Answer the following request with an email using the context below. Select the paragraphs that best answers the request to compose your response. Just provide the email body, no subject or salutation is required. {sentiment_modifier}
+        Request: {support_request}
+        Context: {reference['text']}
+        """
+        prompt = re.sub(r"\n\s+", "\n", prompt)
+
         ollama_url = "http://localhost:11434/api/generate"
         request = {
             "model": model_name,
-            "prompt": prompt + context,
+            "prompt": prompt,
             "options": {
-                "temperature": 0.0,
+                "temperature": 0.5,
+                "num_predict": 500,
             },
             "stream": False,
         }
@@ -105,10 +100,14 @@ class Workflow:
 
         print("Got the answer: \n" + (answer if answer else "---"))
 
+        score = reference['score']
+        data = json.loads(reference['data'])
+        link = os.path.dirname(data['source']) + "/" + data['slug'] if 'slug' in data else ''
         return {
             "suggestion": resilient_translate(answer, 'de', 'en') if options['with_translation'] else answer,
-            "helpdesk_url": "https://www.hosting.de/support/" + (data['slug'] if 'slug' in data else ''),
+            "helpdesk_url": "https://www.hosting.de/helpdesk/" + link,
             'sentiment': sentiment,
-            'prompt': prompt,
-            'context': reference
+            #'prompt': prompt,
+            #'context': reference,
+            'score': score,
         }

@@ -25,7 +25,29 @@ def sentiment_analysis(text):
 
     return tags[labels(text, tags)[0][0]]
 
-translate = Translation("facebook/mbart-large-50-many-to-many-mmt", findmodels=False)
+
+def translate(text: str, target="en", source=None):
+    translator = Translation("facebook/mbart-large-50-many-to-many-mmt", findmodels=False)
+    try:
+        return translator(text, target=target, source=source)
+    except Exception as e:
+        # Split the text into paragraphs
+        paragraphs = split_paragraphs(text)
+        if len(paragraphs) > 1:
+            # Translate each paragraph individually
+            translated_paragraphs = [translate(paragraph, target=target, source=source) for paragraph in paragraphs]
+            return "\n\n".join(translated_paragraphs)
+        else:
+            # Split the text into sentences
+            sentences = split_sentences(text)
+            if len(sentences) > 1:
+                # Translate each sentence individually
+                translated_sentences = [translate(sentence, target=target, source=source) for sentence in sentences]
+                return " ".join(translated_sentences)
+            else:
+                # Cannot split into smaller parts without losing meaning
+                return text
+
+
 split_paragraphs = Segmentation(paragraphs=True)
 split_sentences = Segmentation(sentences=True)
-

@@ -4,3 +4,4 @@
 /prototypes/*/db/
 /models/*
 /.env
+/log.txt
