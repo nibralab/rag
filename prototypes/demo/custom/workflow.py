@@ -6,7 +6,9 @@ from typing import Any
 import requests
 from generic_tasks import sentiment_analysis, translate
 
-ollama_url = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/generate")
+ollama_url = os.environ.get("OLLAMA_URL", "http://localhost")
+ollama_port = os.environ.get("OLLAMA_PORT", "11434")
+ollama_url = f"{ollama_url}:{ollama_port}/api/generate"
 
 
 class Workflow:

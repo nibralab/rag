@@ -22,6 +22,10 @@ model_n_batch = int(os.environ.get('MODEL_N_BATCH', 8))
 callbacks = []
 tag_threshold = 0.4
 
+ollama_url = os.environ.get("OLLAMA_URL", "http://localhost")
+ollama_port = os.environ.get("OLLAMA_PORT", "11434")
+ollama_url = f"{ollama_url}:{ollama_port}/api/generate"
+
 
 def resilient_translate(text: str, target: str, source: str):
     try:
@@ -78,7 +82,6 @@ class Workflow:
         """
         prompt = re.sub(r"\n\s+", "\n", prompt)
 
-        ollama_url = "http://localhost:11434/api/generate"
         request = {
             "model": model_name,
             "prompt": prompt,
@@ -107,7 +110,7 @@ class Workflow:
             "suggestion": resilient_translate(answer, 'de', 'en') if options['with_translation'] else answer,
             "helpdesk_url": "https://www.hosting.de/helpdesk/" + link,
             'sentiment': sentiment,
-            #'prompt': prompt,
-            #'context': reference,
+            # 'prompt': prompt,
+            # 'context': reference,
             'score': score,
         }

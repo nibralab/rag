@@ -1,5 +1,5 @@
 # This file contains the workflow for the demo.
-
+import json
 import os
 import textwrap
 from typing import Any
@@ -7,7 +7,9 @@ from typing import Any
 import requests
 from tasks.generic import translate, sentiment_analysis
 
-ollama_url = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/generate")
+ollama_url = os.environ.get("OLLAMA_URL", "http://localhost")
+ollama_port = os.environ.get("OLLAMA_PORT", "11434")
+ollama_url = f"{ollama_url}:{ollama_port}/api/generate"
 
 
 class Workflow:
@@ -192,7 +194,13 @@ class Workflow:
         response = response.json()
 
         # Get the answer from the response
-        answer = response["response"]
+        try:
+            answer = response["response"]
+        except KeyError:
+            print("KeyError: " + json.dumps(response))
+            return {
+                'error': "KeyError: no key named 'response' in " + json.dumps(response)
+            }
 
         # Split the answer into paragraphs and wordwrap them to 80 characters
         print("\n\n".join([textwrap.fill(paragraph, 80) for paragraph in answer.split("\n\n")]))
