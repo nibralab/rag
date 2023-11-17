@@ -4,6 +4,8 @@ import sys
 
 from dotenv import load_dotenv
 from flask import Flask, request
+import datetime
+from humanfriendly.text import random_string
 
 app = Flask(__name__)
 
@@ -14,6 +16,31 @@ load_dotenv()
 def stop():
     print("Stopping server...")
     sys.exit(0)
+
+
+@app.route('/status/<task_id>', methods=['GET'])
+def get_status(task_id: str):
+    """
+    Get the status of a task
+    """
+
+    # If there is no file for this task_id, return HTTP 404
+    if not os.path.exists(os.path.join('db', task_id + '.json')):
+        return {
+            'error': f'No such task: {task_id}'
+        }, 404
+
+    # Load the file
+    with open(os.path.join('db/tasks', task_id + '.json')) as f:
+        data = json.load(f)
+
+        # If the task is not finished, return HTTP 202
+        if not data['done']:
+            return data, 202
+
+        # If the task is finished, remove the file and return HTTP 200
+        os.remove(os.path.join('db/tasks', task_id + '.json'))
+        return data, 200
 
 
 @app.route('/<client>', methods=['POST'])
@@ -48,8 +75,27 @@ def serve_client(client: str):
         # Take the corresponding value from the form, use None if not set
         params[key] = request.form.get(key, None)
 
+    # Generate a unique filesafe task_id
+    task_id = random_string(8)
+
     # Call the function with the parameters
-    return custom.Workflow().call(step, **params, options=options)
+    options['task_id'] = task_id
+
+    # Create the task file
+    with open(os.path.join('db/tasks', task_id + '.json'), 'w') as f:
+        json.dump({
+            'done': False,
+            'task_id': task_id,
+            "started": datetime.datetime.now().isoformat()
+        }, f)
+
+    custom.Workflow().call(step, **params, options=options)
+
+    # Return HTTP 202 Accepted status code
+    return {
+        "message": "Generation process started",
+        "task_id": task_id,
+    }, 202
 
 
 def prepare_configuration_for_client(client):

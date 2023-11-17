@@ -1,10 +1,10 @@
 import json
 import os
 import re
+import threading
 from typing import Any
 
 import requests
-import torch
 from dotenv import load_dotenv
 from txtai.embeddings import Embeddings
 
@@ -15,26 +15,27 @@ MODEL_PATH = os.path.join(os.path.dirname(os.path.dirname(BASE_PATH)), "models")
 DATA_PATH = os.path.join(BASE_PATH, "db")
 ENV_PATH = os.path.join(BASE_PATH, ".env")
 
-load_dotenv(ENV_PATH)
+print(f"Base path: {BASE_PATH}")
+print(f".env path: {ENV_PATH}")
+
+# Check if the .env file exists
+if not os.path.exists(ENV_PATH):
+    print(f"Missing .env file at {ENV_PATH}")
+
+load_dotenv(ENV_PATH, override=True, verbose=True)
 model_name = os.environ.get('MODEL_NAME')
 model_n_ctx = os.environ.get('MODEL_N_CTX')
 model_n_batch = int(os.environ.get('MODEL_N_BATCH', 8))
 callbacks = []
 tag_threshold = 0.4
 
-ollama_url = os.environ.get("OLLAMA_URL", "http://localhost")
+print(f"Model: {model_name}")
+
+ollama_url = os.environ.get("OLLAMA_URL", "http://ollama")
 ollama_port = os.environ.get("OLLAMA_PORT", "11434")
 ollama_url = f"{ollama_url}:{ollama_port}/api/generate"
 
-
-def resilient_translate(text: str, target: str, source: str):
-    try:
-        return translate(text, target, source)
-    except torch.cuda.OutOfMemoryError as e:
-        print(f"Out of memory error: {e}\ntranslating\n'{text}'\nfrom '{source}' to '{target}'")
-        print("Using original text instead.")
-        return text
-
+print(f"Ollama API: {ollama_url}")
 
 class Workflow:
 
@@ -42,7 +43,8 @@ class Workflow:
         # If this class has a function named func, call it
         func = getattr(self, function_name)
         if callable(func):
-            return func(**params)
+            thread = threading.Thread(target=func, args=params)
+            thread.start()
 
         return {
             'error': f'Unknown callable {function_name}'
@@ -82,6 +84,8 @@ class Workflow:
         """
         prompt = re.sub(r"\n\s+", "\n", prompt)
 
+        print(f"Prompt: \"{prompt}\"")
+
         request = {
             "model": model_name,
             "prompt": prompt,
@@ -99,18 +103,26 @@ class Workflow:
         response = response.json()
 
         # Get the answer from the response
-        answer = response["response"]
+        answer = response["response"] if 'response' in response else response
+
+        if not isinstance(answer, str):
+            return answer
 
         print("Got the answer: \n" + (answer if answer else "---"))
 
         score = reference['score']
         data = json.loads(reference['data'])
         link = os.path.dirname(data['source']) + "/" + data['slug'] if 'slug' in data else ''
-        return {
-            "suggestion": resilient_translate(answer, 'de', 'en') if options['with_translation'] else answer,
+        result = {
+            "done": True,
+            "suggestion": translate(answer, 'de', 'en') if options['with_translation'] else answer,
             "helpdesk_url": "https://www.hosting.de/helpdesk/" + link,
             'sentiment': sentiment,
             # 'prompt': prompt,
             # 'context': reference,
             'score': score,
         }
+
+        # Write the result to the task file
+        with open(os.path.join('db/tasks', options['task_id'] + '.json', "w")) as task_file:
+            json.dump(result, task_file)

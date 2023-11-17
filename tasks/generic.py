@@ -1,3 +1,4 @@
+import torch
 from transformers import pipeline
 from txtai.pipeline import Translation, Segmentation, Labels
 
@@ -30,11 +31,12 @@ def translate(text: str, target="en", source=None):
     translator = Translation("facebook/mbart-large-50-many-to-many-mmt", findmodels=False)
     try:
         return translator(text, target=target, source=source)
-    except Exception as e:
+    except torch.cuda.OutOfMemoryError as e:
         # Split the text into paragraphs
         paragraphs = split_paragraphs(text)
         if len(paragraphs) > 1:
             # Translate each paragraph individually
+            print("Running into out-of-memory, splitting into paragraphs")
             translated_paragraphs = [translate(paragraph, target=target, source=source) for paragraph in paragraphs]
             return "\n\n".join(translated_paragraphs)
         else:
@@ -42,10 +44,12 @@ def translate(text: str, target="en", source=None):
             sentences = split_sentences(text)
             if len(sentences) > 1:
                 # Translate each sentence individually
+                print("Running into out-of-memory, splitting into sentences")
                 translated_sentences = [translate(sentence, target=target, source=source) for sentence in sentences]
                 return " ".join(translated_sentences)
             else:
                 # Cannot split into smaller parts without losing meaning
+                print("Running into out-of-memory, returning untranslated text")
                 return text
 
 
