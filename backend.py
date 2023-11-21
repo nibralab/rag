@@ -17,7 +17,7 @@ app = Flask(__name__)
 step = None
 params = {}
 options = None
-custom = None
+client_ = None
 
 load_dotenv()
 
@@ -27,7 +27,12 @@ def get_status(client:str, task_id: str):
     """
     Get the status of a task
     """
+    global client_
 
+    # Disable after-request processing by setting the global client_ to None
+    client_ = None
+
+    # Generate the path to the task file
     task_file = os.path.join(TASKS_DIR, task_id + '.json')
 
     # If there is no file for this task_id, return HTTP 404
@@ -45,7 +50,7 @@ def get_status(client:str, task_id: str):
 
     # If the task is not finished, return HTTP 202
     if not data['done']:
-        print(f"Task {task_id} not finished yet")
+        print(f"Task {task_id} seems not to be finished yet")
         return data, 202
 
     # If the task is finished, remove the file and return HTTP 200
@@ -57,7 +62,12 @@ def get_status(client:str, task_id: str):
 
 @app.route('/<client>', methods=['POST'])
 def serve_client(client: str):
+    global step, params, options, client_
+
     config, custom = prepare_configuration_for_client(client)
+
+    # Enable after-request processing by setting the global client_ to client
+    client_ = client
 
     step = request.form['step']
 
@@ -113,13 +123,26 @@ def serve_client(client: str):
 def response_processor(response):
     # Prepare all the local variables you need since the request context
     # will be gone in the callback function
+    global step, params, options, client_
+
+    print(f"Processing response for step {step} with params {params} and options {options}")
+
+    # If the global client_ is None, we don't need to do anything
+    if client_ is None:
+        print("Not the main route, returning without further action")
+        return response
+
+    print("Enabling the after-request handler")
+    # Get the configuration and custom module for the client
+    config, custom = prepare_configuration_for_client(client_)
 
     # Call the callback function after the response has been sent
     @flask.copy_current_request_context
     @response.call_on_close
     def process_after_request():
+        print("Processing after request using custom workflow")
         custom.Workflow().call(step, **params, options=options)
-        pass
+        print("Finished processing after request using custom workflow")
 
     return response
 
