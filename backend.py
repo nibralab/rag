@@ -2,6 +2,7 @@ import json
 import os
 import sys
 import datetime
+import flask
 
 from dotenv import load_dotenv
 from flask import Flask, request
@@ -11,6 +12,12 @@ ROOT_DIR = os.path.dirname(__file__)
 TASKS_DIR = os.path.join(ROOT_DIR, 'tasks')
 
 app = Flask(__name__)
+
+# Make workflow parameters available in the call-on-close hook
+step = None
+params = {}
+options = None
+custom = None
 
 load_dotenv()
 
@@ -95,13 +102,26 @@ def serve_client(client: str):
             "started": datetime.datetime.now().isoformat()
         }, f)
 
-    custom.Workflow().call(step, **params, options=options)
-
     # Return HTTP 202 Accepted status code
     return {
         "message": "Generation process started",
         "task_id": task_id,
     }, 202
+
+
+@app.after_request
+def response_processor(response):
+    # Prepare all the local variables you need since the request context
+    # will be gone in the callback function
+
+    # Call the callback function after the response has been sent
+    @flask.copy_current_request_context
+    @response.call_on_close
+    def process_after_request():
+        custom.Workflow().call(step, **params, options=options)
+        pass
+
+    return response
 
 
 def prepare_configuration_for_client(client):
