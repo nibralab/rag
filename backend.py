@@ -1,46 +1,51 @@
 import json
 import os
 import sys
+import datetime
 
 from dotenv import load_dotenv
 from flask import Flask, request
-import datetime
 from humanfriendly.text import random_string
+
+ROOT_DIR = os.path.dirname(__file__)
+TASKS_DIR = os.path.join(ROOT_DIR, 'tasks')
 
 app = Flask(__name__)
 
 load_dotenv()
 
 
-@app.route('/stop', methods=['GET'])
-def stop():
-    print("Stopping server...")
-    sys.exit(0)
-
-
-@app.route('/status/<task_id>', methods=['GET'])
-def get_status(task_id: str):
+@app.route('/<client>/<task_id>', methods=['GET'])
+def get_status(client:str, task_id: str):
     """
     Get the status of a task
     """
 
+    task_file = os.path.join(TASKS_DIR, task_id + '.json')
+
     # If there is no file for this task_id, return HTTP 404
-    if not os.path.exists(os.path.join('db', task_id + '.json')):
+    if not os.path.exists(task_file):
+        print(f"Task file not found: {task_file}")
         return {
             'error': f'No such task: {task_id}'
         }, 404
 
+    print(f"Task file found: {task_file}")
+
     # Load the file
-    with open(os.path.join('db/tasks', task_id + '.json')) as f:
+    with open(task_file) as f:
         data = json.load(f)
 
-        # If the task is not finished, return HTTP 202
-        if not data['done']:
-            return data, 202
+    # If the task is not finished, return HTTP 202
+    if not data['done']:
+        print(f"Task {task_id} not finished yet")
+        return data, 202
 
-        # If the task is finished, remove the file and return HTTP 200
-        os.remove(os.path.join('db/tasks', task_id + '.json'))
-        return data, 200
+    # If the task is finished, remove the file and return HTTP 200
+    os.remove(task_file)
+    print(f"Task {task_id} finished")
+    print(data)
+    return data, 200
 
 
 @app.route('/<client>', methods=['POST'])
@@ -77,12 +82,13 @@ def serve_client(client: str):
 
     # Generate a unique filesafe task_id
     task_id = random_string(8)
+    task_file = os.path.join(TASKS_DIR, task_id + '.json')
 
     # Call the function with the parameters
     options['task_id'] = task_id
 
     # Create the task file
-    with open(os.path.join('db/tasks', task_id + '.json'), 'w') as f:
+    with open(task_file, 'w') as f:
         json.dump({
             'done': False,
             'task_id': task_id,
@@ -100,7 +106,6 @@ def serve_client(client: str):
 
 def prepare_configuration_for_client(client):
     CUSTOM_DIR = os.path.join('prototypes', client)
-    # Base directory
     BASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), CUSTOM_DIR)
     sys.path.append(BASE_DIR)
     # Load JSON config file
