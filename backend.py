@@ -80,13 +80,7 @@ def serve_client(client: str):
     options = {}
     for key in config['options']:
         # Take the corresponding value from the form, use default value from config if not set.
-        options[key] = request.form.get(key, config['options'][key])
-
-        # Convert 'true' and 'false' to bool
-        if options[key] == 'true':
-            options[key] = True
-        elif options[key] == 'false':
-            options[key] = False
+        options[key] = (request.form.get(key, config['options'][key]) == '1')
 
     # Get the parameters for the step function
     defined_params = config['steps'][step]['input']
@@ -104,19 +98,19 @@ def serve_client(client: str):
     # Call the function with the parameters
     options['task_id'] = task_id
 
+    status = {
+        'done': False,
+        'message': 'Generation process started',
+        'task_id': task_id,
+        "started": datetime.datetime.now().isoformat()
+    }
+
     # Create the task file
     with open(task_file, 'w') as f:
-        json.dump({
-            'done': False,
-            'task_id': task_id,
-            "started": datetime.datetime.now().isoformat()
-        }, f)
+        json.dump(status, f)
 
     # Return HTTP 202 Accepted status code
-    return {
-        "message": "Generation process started",
-        "task_id": task_id,
-    }, 202
+    return status, 202
 
 
 @app.after_request
