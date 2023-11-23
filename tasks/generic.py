@@ -1,3 +1,7 @@
+import os
+import re
+
+import requests
 import torch
 from transformers import pipeline
 from txtai.pipeline import Translation, Segmentation, Labels
@@ -27,30 +31,63 @@ def sentiment_analysis(text):
     return tags[labels(text, tags)[0][0]]
 
 
-def translate(text: str, target="en", source=None):
-    translator = Translation("facebook/mbart-large-50-many-to-many-mmt", findmodels=False)
-    try:
-        return translator(text, target=target, source=source)
-    except torch.cuda.OutOfMemoryError as e:
-        # Split the text into paragraphs
-        paragraphs = split_paragraphs(text)
-        if len(paragraphs) > 1:
-            # Translate each paragraph individually
-            print("Running into out-of-memory, splitting into paragraphs")
-            translated_paragraphs = [translate(paragraph, target=target, source=source) for paragraph in paragraphs]
-            return "\n\n".join(translated_paragraphs)
-        else:
-            # Split the text into sentences
-            sentences = split_sentences(text)
-            if len(sentences) > 1:
-                # Translate each sentence individually
-                print("Running into out-of-memory, splitting into sentences")
-                translated_sentences = [translate(sentence, target=target, source=source) for sentence in sentences]
-                return " ".join(translated_sentences)
-            else:
-                # Cannot split into smaller parts without losing meaning
-                print("Running into out-of-memory, returning untranslated text")
-                return text
+def translate(text, target="en", source=None):
+    """
+    Translates text from source language into target language.
+
+    This method supports texts as a string or a list. If the input is a string,
+    the return type is string. If text is a list, the return type is a list.
+
+    Args:
+        texts: text|list
+        target: target language code, defaults to "en"
+        source: source language code, detects language if not provided
+
+    Returns:
+        list of translated text
+    """
+
+    if source is None:
+        source = "en"
+
+    if source == target:
+        return text
+
+    model_name = os.environ.get('MODEL_NAME')
+    languages = {
+        "en": "English",
+        "de": "German",
+    }
+
+    prompt = f"""
+    Translate the following text from {languages[source]} to {languages[target]} without adding any comments or notes:
+    Text: {text}
+    Translation:
+    """
+    prompt = re.sub(r"\n\s+", "\n", prompt)
+
+    request = {
+        "model": model_name,
+        "prompt": prompt,
+        "stream": False,
+    }
+
+    # Send the request to the Ollama URL
+    ollama_url = os.environ.get("OLLAMA_URL", "http://ollama")
+    ollama_port = os.environ.get("OLLAMA_PORT", "11434")
+    ollama_url = f"{ollama_url}:{ollama_port}/api/generate"
+    response = requests.post(ollama_url, json=request)
+
+    # Get the response as JSON
+    response = response.json()
+
+    # Get the answer from the response
+    answer = response["response"] if 'response' in response else response
+
+    print("Orginal text: " + text)
+    print("Translated text: " + answer)
+
+    return answer
 
 
 split_paragraphs = Segmentation(paragraphs=True)
